@@ -1,0 +1,17 @@
+# 忽略编译目录
+build/
+*.o
+*.obj
+*.exe
+Makefile*
+
+# 忽略 Qt Creator 本地用户配置
+*.pro.user
+*.pro.user.*
+
+# 忽略系统生成的缩略图等
+.DS_Store
+Thumbs.db
+
+# 忽略我们稍后要说的敏感配置文件
+config.ini
