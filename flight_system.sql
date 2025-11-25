@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
     P_ID VARCHAR(18) NOT NULL,
     email VARCHAR(40) NULL,
     photo VARCHAR(100) NULL,
-    UNIQUE KEY unique_tele (tele),
+    UNIQUE KEY unique_tele (telephone),
     UNIQUE KEY unique_pid (P_ID)
 );
 
