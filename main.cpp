@@ -14,7 +14,7 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    // 2. 创建 HTTP 服务器实例
+    // 创建 HTTP 服务器实例
     QHttpServer httpServer;
 
     // 创建并注册 FlightController

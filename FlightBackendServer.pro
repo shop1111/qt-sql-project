@@ -22,12 +22,14 @@ CONFIG -= app_bundle
 #    (我们稍后会创建这些文件)
 SOURCES += \
     flightcontroller.cpp \
+    logincontroller.cpp \
     main.cpp
 
 HEADERS += \
     BaseController.h \
     DatabaseManager.h \
-    flightcontroller.h
+    flightcontroller.h \
+    logincontroller.h
 
 # (后面的部署规则可以先忽略)
 qnx: target.path = /tmp/$${TARGET}/bin
