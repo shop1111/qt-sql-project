@@ -40,8 +40,9 @@ QHttpServerResponse LoginController::handleLogin(const QHttpServerRequest &reque
     if (!database.isOpen()) {
         return QHttpServerResponse(QHttpServerResponse::StatusCode::InternalServerError);
     }
+
     QSqlQuery query(database);
-    query.prepare("SELECT U_ID, name, telephone, email, photo FROM users WHERE name = ? AND password = ?");
+    query.prepare("SELECT U_ID, username, telephone, email, photo FROM users WHERE username = ? AND password = ?");
     query.addBindValue(username);
     query.addBindValue(password);
 
@@ -55,7 +56,7 @@ QHttpServerResponse LoginController::handleLogin(const QHttpServerRequest &reque
         // --- 登录成功 ---
         QJsonObject userObj;
         userObj["id"] = query.value("U_ID").toInt();
-        userObj["name"] = query.value("name").toString();
+        userObj["name"] = query.value("username").toString();
         userObj["telephone"] = query.value("telephone").toString();
         userObj["email"] = query.value("email").toString();
         // 如果有头像也可以返回
@@ -69,6 +70,13 @@ QHttpServerResponse LoginController::handleLogin(const QHttpServerRequest &reque
         return QHttpServerResponse(responseObj, QHttpServerResponse::StatusCode::Ok);
     } else {
         // --- 登录失败 (账号或密码错误) ---
-        return QHttpServerResponse("Invalid username or password", QHttpServerResponse::StatusCode::Unauthorized);
+
+        // 此处内容不直接发送字符串，改为发送json
+        QJsonObject errorObj;
+        errorObj["status"] = "error";
+        errorObj["message"] = "用户名或密码错误"; // 这是一个友好的提示
+
+        // return QHttpServerResponse("Invalid username or password", QHttpServerResponse::StatusCode::Unauthorized);
+        return QHttpServerResponse(errorObj, QHttpServerResponse::StatusCode::Unauthorized);
     }
 }
