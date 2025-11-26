@@ -36,6 +36,13 @@ int main(int argc, char *argv[])
     qInfo() << "   服务器已启动 | 监听端口:" << port;
     qInfo() << "   已加载模块: FlightController";
     qInfo() << "==========================================";
+    // const QHostAddress &localhost = QHostAddress(QHostAddress::LocalHost);
+    // for (const QHostAddress &address : QNetworkInterface::allAddresses()) {
+    //     // 过滤掉 IPv6 和 本地回环地址(127.0.0.1)
+    //     if (address.protocol() == QAbstractSocket::IPv4Protocol && address != localhost) {
+    //         qDebug() << "我的局域网 IP 是:" << address.toString();
+    //     }
+    // }
 
     return a.exec();
 }

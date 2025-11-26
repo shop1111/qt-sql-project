@@ -62,7 +62,7 @@ QHttpServerResponse LoginController::handleLogin(const QHttpServerRequest &reque
         // userObj["photo"] = query.value("photo").toString();
 
         QJsonObject responseObj;
-        responseObj["status"] = "success"
+        responseObj["status"] = "success";
         responseObj["message"] = "登陆成功";
         responseObj["user"] = userObj;
 
