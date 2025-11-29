@@ -67,3 +67,6 @@ INSERT INTO orders (user_id, flight_id, seat_type, seat_number, order_date) VALU
 (1, 1, 0, '12A', '2025-11-26 10:00:00'),
 (2, 1, 0, '12B', '2025-11-26 10:05:00'),
 (3, 2, 1, '01F', '2025-11-26 11:00:00');
+
+
+ALTER TABLE users ADD UNIQUE KEY unique_username (username);

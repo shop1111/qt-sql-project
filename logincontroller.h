@@ -11,7 +11,7 @@ public:
 
 private:
     QHttpServerResponse handleLogin(const QHttpServerRequest &request);
-
+    QHttpServerResponse handleRegister(const QHttpServerRequest &request);
 };
 
 #endif // LOGINCONTROLLER_H
