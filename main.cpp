@@ -3,6 +3,7 @@
 #include <QDebug>
 #include "FlightController.h"
 #include "DatabaseManager.h"
+#include "logincontroller.h"
 
 int main(int argc, char *argv[])
 {
@@ -24,6 +25,11 @@ int main(int argc, char *argv[])
     httpServer.route("/<arg>", [](const QHttpServerRequest &) {
         return QHttpServerResponse("Not Found", QHttpServerResponse::StatusCode::NotFound);
     });
+
+    // 修改：注册 LoginController
+    // 只有执行了这一步，服务器才认识 "/api/login" 这个地址
+    LoginController *loginCtrl = new LoginController(&a);
+    loginCtrl->registerRoutes(&httpServer);
 
     // 启动监听, 开始监听本机的全部ip地址和给定的端口
     const quint16 port = 8080;
