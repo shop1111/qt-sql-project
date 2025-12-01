@@ -70,3 +70,72 @@ INSERT INTO orders (user_id, flight_id, seat_type, seat_number, order_date) VALU
 
 
 ALTER TABLE users ADD UNIQUE KEY unique_username (username);
+
+
+USE flight_system;
+
+-- 1. 创建城市代码映射表
+CREATE TABLE IF NOT EXISTS city_codes (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    city_name VARCHAR(50) NOT NULL COMMENT '城市中文名',
+    city_code VARCHAR(3) NOT NULL COMMENT 'IATA三字码',
+    pinyin VARCHAR(50) NULL COMMENT '城市拼音，方便后续做模糊搜索',
+    UNIQUE KEY unique_code (city_code)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 2. 插入中国主要城市/机场代码数据
+-- 注意：北京(BJS)、上海(SHA)等通常作为城市统称代码，具体机场可能有PEK/PKX, PVG/SHA等
+-- 这里优先适配你前端目前使用的代码
+INSERT INTO city_codes (city_name, city_code, pinyin) VALUES
+('北京', 'BJS', 'Beijing'),
+('上海', 'SHA', 'Shanghai'),
+('广州', 'CAN', 'Guangzhou'),
+('深圳', 'SZX', 'Shenzhen'),
+('珠海', 'ZUH', 'Zhuhai'),
+('成都', 'CTU', 'Chengdu'),
+('杭州', 'HGH', 'Hangzhou'),
+('昆明', 'KMG', 'Kunming'),
+('西安', 'XIY', 'Xian'),
+('重庆', 'CKG', 'Chongqing'),
+('武汉', 'WUH', 'Wuhan'),
+('南京', 'NKG', 'Nanjing'),
+('厦门', 'XMN', 'Xiamen'),
+('长沙', 'CSX', 'Changsha'),
+('海口', 'HAK', 'Haikou'),
+('三亚', 'SYX', 'Sanya'),
+('青岛', 'TAO', 'Qingdao'),
+('大连', 'DLC', 'Dalian'),
+('天津', 'TSN', 'Tianjin'),
+('郑州', 'CGO', 'Zhengzhou'),
+('沈阳', 'SHE', 'Shenyang'),
+('哈尔滨', 'HRB', 'Harbin'),
+('乌鲁木齐', 'URC', 'Urumqi'),
+('贵阳', 'KWE', 'Guiyang'),
+('南宁', 'NNG', 'Nanning'),
+('福州', 'FOC', 'Fuzhou'),
+('兰州', 'LHW', 'Lanzhou'),
+('太原', 'TYN', 'Taiyuan'),
+('长春', 'CGQ', 'Changchun'),
+('南昌', 'KHN', 'Nanchang'),
+('呼和浩特', 'HET', 'Hohhot'),
+('宁波', 'NGB', 'Ningbo'),
+('温州', 'WNZ', 'Wenzhou'),
+('合肥', 'HFE', 'Hefei'),
+('济南', 'TNA', 'Jinan'),
+('石家庄', 'SJW', 'Shijiazhuang'),
+('银川', 'INC', 'Yinchuan'),
+('西宁', 'XNN', 'Xining'),
+('拉萨', 'LXA', 'Lhasa'),
+('丽江', 'LJG', 'Lijiang'),
+('西双版纳', 'JHG', 'Xishuangbanna'),
+('桂林', 'KWL', 'Guilin'),
+('烟台', 'YNT', 'Yantai'),
+('泉州', 'JJN', 'Quanzhou'),
+('无锡', 'WUX', 'Wuxi'),
+('洛阳', 'LYA', 'Luoyang');
+
+-- 3. (可选) 如果你想更新航班表，让它也关联这个代码，可以建立外键
+-- 但目前你的 flights 表直接存的是中文 "北京", "上海"
+-- 建议后续查询时，先查 city_codes 表把代码转成中文，再去查 flights 表
+
+ALTER TABLE orders ADD COLUMN status VARCHAR(20) DEFAULT '未支付' COMMENT '订单状态';

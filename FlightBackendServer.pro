@@ -21,6 +21,7 @@ CONFIG -= app_bundle
 #    SOURCES: .cpp 源文件 (定义了“怎么做”)
 #    (我们稍后会创建这些文件)
 SOURCES += \
+    OrderController.cpp \
     flightcontroller.cpp \
     logincontroller.cpp \
     main.cpp
@@ -28,6 +29,7 @@ SOURCES += \
 HEADERS += \
     BaseController.h \
     DatabaseManager.h \
+    OrderController.h \
     flightcontroller.h \
     logincontroller.h
 
@@ -38,4 +40,5 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 DISTFILES += \
     .gitignore \
-    config.ini
+    config.ini \
+    flight_system.sql

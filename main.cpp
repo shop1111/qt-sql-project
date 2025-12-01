@@ -4,6 +4,7 @@
 #include "FlightController.h"
 #include "DatabaseManager.h"
 #include "logincontroller.h"
+#include "OrderController.h"
 
 int main(int argc, char *argv[])
 {
@@ -22,6 +23,7 @@ int main(int argc, char *argv[])
     // 这里展示了核心思想：Controller 只是一个负责干活的插件
     FlightController *flightCtrl = new FlightController(&a);
     flightCtrl->registerRoutes(&httpServer);
+
     httpServer.route("/<arg>", [](const QHttpServerRequest &) {
         return QHttpServerResponse("Not Found", QHttpServerResponse::StatusCode::NotFound);
     });
@@ -30,6 +32,11 @@ int main(int argc, char *argv[])
     // 只有执行了这一步，服务器才认识 "/api/login" 这个地址
     LoginController *loginCtrl = new LoginController(&a);
     loginCtrl->registerRoutes(&httpServer);
+
+
+    OrderController *orderCtrl = new OrderController(&a);
+    orderCtrl->registerRoutes(&httpServer);
+
 
     // 启动监听, 开始监听本机的全部ip地址和给定的端口
     const quint16 port = 8080;
