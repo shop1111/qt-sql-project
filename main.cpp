@@ -5,7 +5,8 @@
 #include "DatabaseManager.h"
 #include "logincontroller.h"
 #include "OrderController.h"
-
+#include"SeatController.h"
+#include"SystemController.h"
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
@@ -37,6 +38,12 @@ int main(int argc, char *argv[])
     OrderController *orderCtrl = new OrderController(&a);
     orderCtrl->registerRoutes(&httpServer);
 
+    SeatController *seatCtrl = new SeatController(&a);
+    seatCtrl->registerRoutes(&httpServer);
+
+    // Register SystemController for system management routes
+    SystemController *systemCtrl = new SystemController(&a); // Instantiate SystemController
+    systemCtrl->registerRoutes(&httpServer); // Register its routes
 
     // 启动监听, 开始监听本机的全部ip地址和给定的端口
     const quint16 port = 8080;
