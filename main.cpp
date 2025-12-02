@@ -39,6 +39,10 @@ int main(int argc, char *argv[])
     OrderController *orderCtrl = new OrderController(&a);
     orderCtrl->registerRoutes(&httpServer);
 
+    // 注册 PaymentController
+    PaymentController *paymentCtrl = new PaymentController(&a);
+    paymentCtrl->registerRoutes(&httpServer);
+    
     SeatController *seatCtrl = new SeatController(&a);
     seatCtrl->registerRoutes(&httpServer);
 
