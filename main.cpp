@@ -5,6 +5,7 @@
 #include "DatabaseManager.h"
 #include "logincontroller.h"
 #include "OrderController.h"
+#include"PaymentController.h"
 #include"SeatController.h"
 #include"SystemController.h"
 int main(int argc, char *argv[])
