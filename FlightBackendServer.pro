@@ -22,6 +22,9 @@ CONFIG -= app_bundle
 #    (我们稍后会创建这些文件)
 SOURCES += \
     OrderController.cpp \
+    PaymentController.cpp \
+    SeatController.cpp \
+    SystemController.cpp \
     flightcontroller.cpp \
     logincontroller.cpp \
     main.cpp
@@ -30,6 +33,9 @@ HEADERS += \
     BaseController.h \
     DatabaseManager.h \
     OrderController.h \
+    PaymentController.h \
+    SeatController.h \
+    SystemController.h \
     flightcontroller.h \
     logincontroller.h
 
