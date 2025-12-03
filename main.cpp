@@ -8,6 +8,8 @@
 #include"PaymentController.h"
 #include"SeatController.h"
 #include"SystemController.h"
+#include"BrowseHistoryController.h"
+
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
@@ -42,13 +44,17 @@ int main(int argc, char *argv[])
     // 注册 PaymentController
     PaymentController *paymentCtrl = new PaymentController(&a);
     paymentCtrl->registerRoutes(&httpServer);
-    
+
     SeatController *seatCtrl = new SeatController(&a);
     seatCtrl->registerRoutes(&httpServer);
 
     // Register SystemController for system management routes
     SystemController *systemCtrl = new SystemController(&a); // Instantiate SystemController
     systemCtrl->registerRoutes(&httpServer); // Register its routes
+
+    // 注册 BrowseHistoryController
+    BrowseHistoryController *browseHistoryCtrl = new BrowseHistoryController(&a);
+    browseHistoryCtrl->registerRoutes(&httpServer);
 
     // 启动监听, 开始监听本机的全部ip地址和给定的端口
     const quint16 port = 8080;
