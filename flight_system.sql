@@ -168,7 +168,7 @@ INSERT INTO orders (user_id, flight_id, seat_type, seat_number, status, order_da
 
 
 -- 设置admin用户为管理员
-UPDATE users SET role = 'admin' WHERE username = 'admin';
+-- UPDATE users SET role = 'admin' WHERE username = 'admin';
 
 -- 统计视图（用于SystemController）
 -- 订单统计视图
