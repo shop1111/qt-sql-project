@@ -21,17 +21,25 @@ CONFIG -= app_bundle
 #    SOURCES: .cpp 源文件 (定义了“怎么做”)
 #    (我们稍后会创建这些文件)
 SOURCES += \
+    BrowseHistoryController.cpp \
     OrderController.cpp \
     aicontroller.cpp \
+    PaymentController.cpp \
+    SeatController.cpp \
+    SystemController.cpp \
     flightcontroller.cpp \
     logincontroller.cpp \
     main.cpp
 
 HEADERS += \
     BaseController.h \
+    BrowseHistoryController.h \
     DatabaseManager.h \
     OrderController.h \
     aicontroller.h \
+    PaymentController.h \
+    SeatController.h \
+    SystemController.h \
     flightcontroller.h \
     logincontroller.h
 
