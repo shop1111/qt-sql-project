@@ -113,7 +113,7 @@ QHttpServerResponse LoginController::handleRegister(const QHttpServerRequest &re
 
     // 2. 校验必要字段
     if (!jsonObj.contains("username") || !jsonObj.contains("password") ||
-        !jsonObj.contains("email") || !jsonObj.contains("telephone") || !jsonObj.contains("ID")) {
+        !jsonObj.contains("email") || !jsonObj.contains("telephone")) {
         QJsonObject responseObj;
         responseObj["status"] = "failed";
         responseObj["message"] = "注册数据不全";
@@ -125,7 +125,6 @@ QHttpServerResponse LoginController::handleRegister(const QHttpServerRequest &re
     QString password = jsonObj["password"].toString();
     QString email = jsonObj["email"].toString();
     QString telephone = jsonObj["telephone"].toString();
-    QString pid = jsonObj["ID"].toString(); // JSON中的 ID 对应数据库的 P_ID
 
     // 4. 获取数据库连接
     QSqlDatabase database = DatabaseManager::getConnection();
@@ -138,14 +137,12 @@ QHttpServerResponse LoginController::handleRegister(const QHttpServerRequest &re
 
     // 5. 执行插入操作
     QSqlQuery query(database);
-    query.prepare("INSERT INTO users (username, password, telephone, email, P_ID) "
-                  "VALUES (?, ?, ?, ?, ?)");
+    query.prepare("INSERT INTO users (username, password, telephone, email) "
+                  "VALUES (?, ?, ?, ?)");
     query.addBindValue(username);
     query.addBindValue(password);
     query.addBindValue(telephone);
     query.addBindValue(email);
-    query.addBindValue(pid);
-
     if (!query.exec()) {
         // 记录具体的 SQL 错误
         qWarning() << "Register SQL Error:" << query.lastError().text();

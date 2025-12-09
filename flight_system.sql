@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
     nickname VARCHAR(30) NULL,
     telephone VARCHAR(11) NOT NULL,
     password VARCHAR(30) NOT NULL,
-    P_ID VARCHAR(18) NOT NULL,
+    P_ID VARCHAR(18) NULL,
     email VARCHAR(40) NULL,
     photo VARCHAR(100) NULL,
     UNIQUE KEY unique_tele (telephone),

@@ -9,7 +9,8 @@
 #include"SeatController.h"
 #include"SystemController.h"
 #include"BrowseHistoryController.h"
-
+#include "aicontroller.h"
+#include "usercontroller.h"
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
@@ -56,6 +57,12 @@ int main(int argc, char *argv[])
     BrowseHistoryController *browseHistoryCtrl = new BrowseHistoryController(&a);
     browseHistoryCtrl->registerRoutes(&httpServer);
 
+    AIController *aiCtrl = new AIController(&a);
+    aiCtrl->registerRoutes(&httpServer);
+
+    UserController* userCtrl = new UserController(&a);
+    userCtrl->registerRoutes(&httpServer);
+
     // 启动监听, 开始监听本机的全部ip地址和给定的端口
     const quint16 port = 8080;
     if (!httpServer.listen(QHostAddress::Any, port)) {
@@ -66,6 +73,9 @@ int main(int argc, char *argv[])
     qInfo() << "==========================================";
     qInfo() << "   服务器已启动 | 监听端口:" << port;
     qInfo() << "   已加载模块: FlightController";
+    qInfo() << "   已加载模块: LoginController";
+    qInfo() << "   已加载模块: AIController";
+    qInfo() << "   已加载模块: UserController";
     qInfo() << "==========================================";
     // const QHostAddress &localhost = QHostAddress(QHostAddress::LocalHost);
     // for (const QHostAddress &address : QNetworkInterface::allAddresses()) {

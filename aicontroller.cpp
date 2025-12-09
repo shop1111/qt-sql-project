@@ -146,7 +146,7 @@ QJsonObject AIController::callLLMToParseIntent(const QString &userText)
     messages.append(messageUser);
 
     QJsonObject payload;
-    payload["model"] = "qianwen"; // 根据你的服务商修改模型名称，如 gpt-3.5-turbo
+    payload["model"] = "qwen-turbo"; // 根据你的服务商修改模型名称，如 gpt-3.5-turbo
     payload["messages"] = messages;
     payload["temperature"] = 0.1; // 温度设低，让 AI 回答更严谨
     QString apiUrl = getAiConfig("ApiUrl", "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions");
@@ -238,7 +238,7 @@ QString AIController::callLLMToChat(const QString &systemPrompt, const QString &
     messages.append(messageUser);
 
     QJsonObject payload;
-    payload["model"] = "deepseek-chat"; // 或 gpt-3.5-turbo
+    payload["model"] = "qwen-turbo"; // 或 gpt-3.5-turbo
     payload["messages"] = messages;
     payload["temperature"] = 0.7; // 稍微高一点，让说话自然些
 

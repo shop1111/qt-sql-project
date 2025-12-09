@@ -15,28 +15,28 @@ void SystemController::registerRoutes(QHttpServer *server)
 {
     // 航班管理
     //管理员添加航班
-    server->route("/api/flight/add", QHttpServerRequest::Method::Post,
+    server->route("/system/api/flight/add", QHttpServerRequest::Method::Post,
                   [this](const QHttpServerRequest &req) { return handleAddFlight(req); });
     //管理员修改航班
-    server->route("/api/flight/update", QHttpServerRequest::Method::Post,
+    server->route("/system/api/flight/update", QHttpServerRequest::Method::Post,
                   [this](const QHttpServerRequest &req) { return handleUpdateFlight(req); });
     //管理员删除航班
-    server->route("/api/flight/delete", QHttpServerRequest::Method::Post,
+    server->route("/system/api/flight/delete", QHttpServerRequest::Method::Post,
                   [this](const QHttpServerRequest &req) { return handleDeleteFlight(req); });
 
     // 用户管理
     //增删改用户
-    server->route("/api/user/add", QHttpServerRequest::Method::Post,
+    server->route("/system/api/user/add", QHttpServerRequest::Method::Post,
                   [this](const QHttpServerRequest &req) { return handleAddUser(req); });
-    server->route("/api/user/update", QHttpServerRequest::Method::Post,
+    server->route("/system/api/user/update", QHttpServerRequest::Method::Post,
                   [this](const QHttpServerRequest &req) { return handleUpdateUser(req); });
-    server->route("/api/user/delete", QHttpServerRequest::Method::Post,
+    server->route("/system/api/user/delete", QHttpServerRequest::Method::Post,
                   [this](const QHttpServerRequest &req) { return handleDeleteUser(req); });
 
     // 数据统计
-    server->route("/api/statistics/orders", QHttpServerRequest::Method::Post,
+    server->route("/system/api/statistics/orders", QHttpServerRequest::Method::Post,
                   [this](const QHttpServerRequest &req) { return handleOrderStatistics(req); });
-    server->route("/api/statistics/flight_occupancy", QHttpServerRequest::Method::Post,
+    server->route("/system/api/statistics/flight_occupancy", QHttpServerRequest::Method::Post,
                   [this](const QHttpServerRequest &req) { return handleFlightOccupancyStatistics(req); });
 }
 

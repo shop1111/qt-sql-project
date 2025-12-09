@@ -29,7 +29,8 @@ SOURCES += \
     SystemController.cpp \
     flightcontroller.cpp \
     logincontroller.cpp \
-    main.cpp
+    main.cpp \
+    usercontroller.cpp
 
 HEADERS += \
     BaseController.h \
@@ -41,7 +42,8 @@ HEADERS += \
     SeatController.h \
     SystemController.h \
     flightcontroller.h \
-    logincontroller.h
+    logincontroller.h \
+    usercontroller.h
 
 # (后面的部署规则可以先忽略)
 qnx: target.path = /tmp/$${TARGET}/bin
