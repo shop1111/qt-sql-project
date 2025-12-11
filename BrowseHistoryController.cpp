@@ -8,6 +8,8 @@
 #include <QDebug>
 #include <QDateTime>
 #include <QTimer>
+#include <QUrl>
+#include <QUrlQuery>
 
 BrowseHistoryController::BrowseHistoryController(QObject *parent) : BaseController(parent)
 {
@@ -22,10 +24,16 @@ void BrowseHistoryController::registerRoutes(QHttpServer *server)
                       return handleAddBrowseHistory(req);
                   });
 
-    // 获取浏览历史（最近10条）
-    server->route("/api/browse/history", QHttpServerRequest::Method::Post,
+    // 获取浏览历史 - 修改为支持两种方式：GET带参数和POST带JSON
+    server->route("/api/browse/history", QHttpServerRequest::Method::Get | QHttpServerRequest::Method::Post,
                   [this](const QHttpServerRequest &req) {
                       return handleGetBrowseHistory(req);
+                  });
+
+    // 为前端历史记录页面添加专门的路由 (新增)
+    server->route("/api/history", QHttpServerRequest::Method::Get,
+                  [this](const QHttpServerRequest &req) {
+                      return handleFrontendHistoryRequest(req);
                   });
 
     // 清空浏览历史
@@ -52,6 +60,8 @@ void BrowseHistoryController::registerRoutes(QHttpServer *server)
 - 支持保存航班快照数据作为历史状态
 - 所有数据库操作在事务中完成，保证数据一致性
           */
+
+
 
 QHttpServerResponse BrowseHistoryController::handleAddBrowseHistory(const QHttpServerRequest &request)
 {
@@ -113,30 +123,37 @@ QHttpServerResponse BrowseHistoryController::handleAddBrowseHistory(const QHttpS
 
         // 2. 如果已有记录，先删除最旧的一条（如果超过9条）
         // 使用子查询找到最早的记录，保持最多10条记录
+        // 2. 如果已有记录，先删除最旧的一条（如果超过9条）
+        // 使用子查询找到最早的记录，保持最多10条记录
         if (recordCount >= 10) {
             QSqlQuery deleteQuery(db);
             deleteQuery.prepare(R"(
-                DELETE FROM browse_history
+        DELETE FROM browse_history
+        WHERE user_id = ?
+        AND id IN (
+            SELECT id FROM (
+                SELECT id FROM browse_history
                 WHERE user_id = ?
-                AND id IN (
-                    SELECT id FROM (
-                        SELECT id FROM browse_history
-                        WHERE user_id = ?
-                        ORDER BY browse_time ASC
-                        LIMIT 1
-                    ) as tmp
-                )
-            )");
+                ORDER BY browse_time ASC
+                LIMIT ?  // 删除超过9条的部分
+            ) as tmp
+        )
+    )");
+            int recordsToDelete = recordCount - 9;  // 保持9条，加上新的一条就是10条
             deleteQuery.addBindValue(userId);
             deleteQuery.addBindValue(userId);
+            deleteQuery.addBindValue(recordsToDelete);  // 要删除的数量
 
             if (!deleteQuery.exec()) {
                 db.rollback();
                 QJsonObject err;
                 err["status"] = "failed";
-                err["message"] = "删除旧记录失败";
+                err["message"] = "删除旧记录失败: " + deleteQuery.lastError().text();
                 return QHttpServerResponse(err, QHttpServerResponse::StatusCode::InternalServerError);
             }
+
+            // 调试信息
+            qDebug() << "删除了" << recordsToDelete << "条旧记录，用户ID:" << userId;
         }
 
         // 3. 插入新的浏览记录
@@ -255,32 +272,33 @@ QHttpServerResponse BrowseHistoryController::handleGetBrowseHistory(const QHttpS
         // 浏览记录基本信息
         historyItem["history_id"] = query.value("history_id").toInt();
 
-        // 时间格式化
+        // 航班信息 - 使用前端期望的字段名
+        historyItem["flightNo"] = query.value("flight_number").toString();  // 改为 flightNo
+        historyItem["airline"] = query.value("airline").toString();
+        historyItem["depCity"] = query.value("origin").toString();          // 改为 depCity
+        historyItem["arrCity"] = query.value("destination").toString();     // 改为 arrCity
+
+        // 时间格式化 - 只返回时间部分
+        QDateTime depTime = query.value("departure_time").toDateTime();
+        QDateTime arrTime = query.value("landing_time").toDateTime();
+        historyItem["depTime"] = depTime.toString("HH:mm");                 // 改为 depTime
+        historyItem["arrTime"] = arrTime.toString("HH:mm");                 // 改为 arrTime
+
+        // 价格信息 - 使用前端期望的字段名
+        historyItem["price"] = query.value("economy_price").toInt();        // 改为 price
+
+        // 浏览时间（保持原样）
         QDateTime browseTime = query.value("browse_time").toDateTime();
         historyItem["browse_time"] = browseTime.toString("yyyy-MM-dd HH:mm:ss");
         historyItem["browse_time_relative"] = getRelativeTime(browseTime);
 
-        // 航班信息
+        // 保留原始数据，但使用新字段名对外暴露
         historyItem["flight_id"] = query.value("flight_id").toInt();
-        historyItem["flight_number"] = query.value("flight_number").toString();
-        historyItem["airline"] = query.value("airline").toString();
-        historyItem["origin"] = query.value("origin").toString();
-        historyItem["destination"] = query.value("destination").toString();
-
-        // 时间格式化
-        QDateTime depTime = query.value("departure_time").toDateTime();
-        QDateTime arrTime = query.value("landing_time").toDateTime();
-        historyItem["departure_time"] = depTime.toString("yyyy-MM-dd HH:mm");
-        historyItem["landing_time"] = arrTime.toString("HH:mm");
-
         historyItem["aircraft_model"] = query.value("aircraft_model").toString();
-
-        // 价格信息
-        historyItem["economy_price"] = query.value("economy_price").toInt();
         historyItem["business_price"] = query.value("business_price").toInt();
         historyItem["first_class_price"] = query.value("first_class_price").toInt();
 
-        // 如果有快照数据，也返回
+        // 如果有快照数据
         QString flightDataStr = query.value("flight_data").toString();
         if (!flightDataStr.isEmpty()) {
             QJsonDocument snapshotDoc = QJsonDocument::fromJson(flightDataStr.toUtf8());
@@ -347,6 +365,128 @@ QHttpServerResponse BrowseHistoryController::handleClearBrowseHistory(const QHtt
     response["status"] = "success";
     response["message"] = "浏览记录已清空";
     response["deleted_count"] = query.numRowsAffected();
+
+    return QHttpServerResponse(response, QHttpServerResponse::StatusCode::Ok);
+}
+
+QHttpServerResponse BrowseHistoryController::handleFrontendHistoryRequest(const QHttpServerRequest &request)
+{
+    // 解析URL参数
+    QUrl url = request.url();
+
+    // 调试信息
+    qDebug() << "请求URL:" << url.toString();
+    qDebug() << "查询参数:" << url.query();
+
+    // 解析查询参数
+    QUrlQuery query(url);
+    QString uidStr = query.queryItemValue("uid");
+
+    if (uidStr.isEmpty()) {
+        QJsonObject err;
+        err["status"] = "failed";
+        err["message"] = "缺少uid参数";
+        qDebug() << "缺少uid参数";
+        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::BadRequest);
+    }
+
+    bool ok;
+    int userId = uidStr.toInt(&ok);
+
+    if (!ok || userId <= 0) {
+        QJsonObject err;
+        err["status"] = "failed";
+        err["message"] = "无效的用户ID";
+        qDebug() << "无效的用户ID:" << uidStr;
+        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::BadRequest);
+    }
+
+    qDebug() << "获取用户历史记录，用户ID:" << userId;
+
+    QSqlDatabase db = DatabaseManager::getConnection();
+    if (!db.isOpen()) {
+        QJsonObject err;
+        err["status"] = "failed";
+        err["message"] = "数据库连接失败";
+        qDebug() << "数据库连接失败";
+        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::InternalServerError);
+    }
+
+    // 查询浏览历史，按照前端期望的字段名返回
+    QSqlQuery queryDb(db);
+    queryDb.prepare(R"(
+        SELECT
+            bh.id as history_id,
+            bh.browse_time,
+            f.ID as flight_id,
+            f.flight_number,
+            f.airline,
+            f.origin,
+            f.destination,
+            f.departure_time,
+            f.landing_time,
+            f.aircraft_model,
+            f.economy_price,
+            f.business_price,
+            f.first_class_price
+        FROM browse_history bh
+        LEFT JOIN flights f ON bh.flight_id = f.ID
+        WHERE bh.user_id = ?
+        ORDER BY bh.browse_time DESC
+        LIMIT 10
+    )");
+    queryDb.addBindValue(userId);
+
+    if (!queryDb.exec()) {
+        QJsonObject err;
+        err["status"] = "failed";
+        err["message"] = "查询浏览记录失败: " + queryDb.lastError().text();
+        qDebug() << "SQL查询失败:" << queryDb.lastError().text();
+        qDebug() << "SQL语句:" << queryDb.lastQuery();
+        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::InternalServerError);
+    }
+
+    QJsonArray historyList;
+    while (queryDb.next()) {
+        QJsonObject historyItem;
+
+        // 按照前端期望的字段名返回
+        historyItem["flightNo"] = queryDb.value("flight_number").toString();
+        historyItem["depCity"] = queryDb.value("origin").toString();
+        historyItem["arrCity"] = queryDb.value("destination").toString();
+
+        // 时间格式化 - 只返回时间部分（HH:mm）
+        QDateTime depTime = queryDb.value("departure_time").toDateTime();
+        QDateTime arrTime = queryDb.value("landing_time").toDateTime();
+        historyItem["depTime"] = depTime.toString("HH:mm");
+        historyItem["arrTime"] = arrTime.toString("HH:mm");
+
+        // 价格 - 使用经济舱价格作为默认价格
+        historyItem["price"] = queryDb.value("economy_price").toInt();
+
+        // 其他可能需要的字段
+        historyItem["flight_id"] = queryDb.value("flight_id").toInt();
+        historyItem["airline"] = queryDb.value("airline").toString();
+        historyItem["aircraft_model"] = queryDb.value("aircraft_model").toString();
+
+        // 时间信息
+        QDateTime browseTime = queryDb.value("browse_time").toDateTime();
+        historyItem["browse_time"] = browseTime.toString("yyyy-MM-dd HH:mm:ss");
+
+        // 航班完整信息（如果需要）
+        historyItem["departure_full_time"] = depTime.toString("yyyy-MM-dd HH:mm");
+        historyItem["arrival_full_time"] = arrTime.toString("yyyy-MM-dd HH:mm");
+
+        historyList.append(historyItem);
+    }
+
+    QJsonObject response;
+    response["status"] = "success";
+    response["message"] = "获取浏览记录成功";
+    response["data"] = historyList;
+    response["count"] = historyList.size();
+
+    qDebug() << "成功返回" << historyList.size() << "条记录";
 
     return QHttpServerResponse(response, QHttpServerResponse::StatusCode::Ok);
 }
