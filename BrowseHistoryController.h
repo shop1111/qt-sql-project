@@ -23,6 +23,9 @@ private:
     // 清空用户的浏览记录
     QHttpServerResponse handleClearBrowseHistory(const QHttpServerRequest &request);
 
+    //连前后端时新增
+    QHttpServerResponse handleFrontendHistoryRequest(const QHttpServerRequest &request);
+
     // 辅助函数：获取相对时间（如"1小时前"）
     QString getRelativeTime(const QDateTime &time);
 };
