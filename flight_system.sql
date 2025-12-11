@@ -73,23 +73,10 @@ CREATE TABLE IF NOT EXISTS city_codes (
     UNIQUE KEY unique_code (city_code)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
--- 5. 支付记录表
-CREATE TABLE IF NOT EXISTS payments (
-    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY COMMENT '支付ID',
-    order_id INT NOT NULL COMMENT '关联的订单ID',
-    amount DECIMAL(10, 2) NOT NULL COMMENT '支付金额',
-    payment_status VARCHAR(20) NOT NULL DEFAULT 'pending' COMMENT '支付状态: pending-待支付, completed-已完成, refunded-已退款, failed-支付失败',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '支付创建时间',
-    completed_at DATETIME NULL COMMENT '支付完成时间',
-    refund_time DATETIME NULL COMMENT '退款时间',
-    payment_method VARCHAR(20) NULL COMMENT '支付方式: wechat-微信, alipay-支付宝, bank-银行卡',
-    transaction_id VARCHAR(100) NULL COMMENT '第三方支付交易号',
-
-    FOREIGN KEY (order_id) REFERENCES orders(ID) ON DELETE CASCADE,
-    INDEX idx_order_id (order_id),
-    INDEX idx_status (payment_status),
-    INDEX idx_created_at (created_at)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+-- 在 orders 表添加更多payment相关字段
+ALTER TABLE orders
+ADD COLUMN payment_time DATETIME NULL COMMENT '支付时间',
+ADD COLUMN payment_method VARCHAR(20) NULL COMMENT '支付方式: wechat-微信, alipay-支付宝, bank-银行卡';
 
 
 -- ============================================
@@ -166,6 +153,30 @@ INSERT INTO orders (user_id, flight_id, seat_type, seat_number, status, order_da
 (3, 2, 1, '01F', '已取消', '2025-11-26 11:00:00'),
 (1, 3, 2, '01A', '未支付', '2025-11-27 09:00:00');
 
+-- 浏览历史表
+CREATE TABLE IF NOT EXISTS browse_history (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    flight_id INT NOT NULL,
+    flight_data JSON NULL,
+    browse_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (user_id) REFERENCES users(U_ID) ON DELETE CASCADE,
+    FOREIGN KEY (flight_id) REFERENCES flights(ID) ON DELETE CASCADE,
+    INDEX idx_user (user_id),
+    INDEX idx_browse_time (browse_time)
+) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- 插入新的测试数据，确保每个flight_id都能在flights表中找到
+INSERT INTO browse_history (user_id, flight_id, browse_time) VALUES
+-- 用户1的浏览记录
+(1, 1, '2025-12-01 08:00:00'),  -- flight_id=1 对应 CA1001
+(1, 2, '2025-12-02 09:30:00'),  -- flight_id=2 对应 MU2567
+(1, 3, '2025-12-03 14:20:00'),  -- flight_id=3 对应 CZ3888
+(1, 4, '2025-12-04 16:45:00'),  -- flight_id=4 对应 CA1502
+-- 用户2的浏览记录
+(2, 1, '2025-12-05 10:00:00'),
+(2, 4, '2025-12-05 11:30:00');
 
 -- 设置admin用户为管理员
 -- UPDATE users SET role = 'admin' WHERE username = 'admin';
