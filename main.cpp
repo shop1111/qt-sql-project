@@ -76,6 +76,10 @@ int main(int argc, char *argv[])
     qInfo() << "   已加载模块: LoginController";
     qInfo() << "   已加载模块: AIController";
     qInfo() << "   已加载模块: UserController";
+    qInfo() << "   已加载模块: PaymentController";
+    qInfo() << "   已加载模块: SeatController";
+    qInfo() << "   已加载模块: SystemController";
+    qInfo() << "   已加载模块: BrowseHistoryController";
     qInfo() << "==========================================";
     // const QHostAddress &localhost = QHostAddress(QHostAddress::LocalHost);
     // for (const QHostAddress &address : QNetworkInterface::allAddresses()) {
