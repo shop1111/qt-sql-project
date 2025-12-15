@@ -20,7 +20,7 @@ private:
     QHttpServerResponse handleGetOrders(const QHttpServerRequest &request);
 
     // 3. 退票/取消订单 (POST)
-    QHttpServerResponse handleCancelOrder(const QHttpServerRequest &request);
+    QHttpServerResponse handleDeleteOrder(const QHttpServerRequest &request);
 };
 
 #endif // ORDERCONTROLLER_H

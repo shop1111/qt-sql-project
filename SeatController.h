@@ -16,6 +16,7 @@ private:
     QHttpServerResponse handleSeatSelection(const QHttpServerRequest &request);
     QHttpServerResponse handleSeatLock(const QHttpServerRequest &request);
     QHttpServerResponse handleSeatStatus(const QHttpServerRequest &request);
+    QHttpServerResponse handleSeatUnlock(const QHttpServerRequest &request);
 };
 
 #endif // SEATCONTROLLER_H

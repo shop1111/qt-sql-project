@@ -178,9 +178,6 @@ INSERT INTO browse_history (user_id, flight_id, browse_time) VALUES
 (2, 1, '2025-12-05 10:00:00'),
 (2, 4, '2025-12-05 11:30:00');
 
--- 设置admin用户为管理员
--- UPDATE users SET role = 'admin' WHERE username = 'admin';
-
 -- 统计视图（用于SystemController）
 -- 订单统计视图
 CREATE OR REPLACE VIEW order_statistics AS
@@ -194,24 +191,6 @@ SELECT
     COUNT(DISTINCT o.user_id) as unique_users
 FROM orders o
 GROUP BY DATE(o.order_date);
-
--- 航班上座率统计视图
-CREATE OR REPLACE VIEW flight_occupancy_stats AS
-SELECT
-    f.ID as flight_id,
-    f.flight_number,
-    f.origin,
-    f.destination,
-    f.departure_time,
-    (f.economy_seats + f.business_seats + f.first_class_seats) as total_seats,
-    COUNT(o.ID) as booked_seats,
-    ROUND(COUNT(o.ID) * 100.0 / (f.economy_seats + f.business_seats + f.first_class_seats), 2) as occupancy_rate,
-    SUM(CASE WHEN o.seat_type = 0 THEN 1 ELSE 0 END) as economy_booked,
-    SUM(CASE WHEN o.seat_type = 1 THEN 1 ELSE 0 END) as business_booked,
-    SUM(CASE WHEN o.seat_type = 2 THEN 1 ELSE 0 END) as first_class_booked
-FROM flights f
-LEFT JOIN orders o ON f.ID = o.flight_id AND o.status IN ('已支付', '已完成')
-GROUP BY f.ID, f.flight_number, f.origin, f.destination, f.departure_time;
 
 -- ============================================
 -- 实用工具查询
