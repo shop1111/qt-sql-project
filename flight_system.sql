@@ -64,6 +64,10 @@ CREATE TABLE IF NOT EXISTS orders (
     INDEX idx_status (status),
     INDEX idx_user (user_id)
 );
+-- 在 orders 表添加更多payment相关字段
+ALTER TABLE orders
+ADD COLUMN payment_time DATETIME NULL COMMENT '支付时间',
+ADD COLUMN payment_method VARCHAR(20) NULL COMMENT '支付方式: wechat-微信, alipay-支付宝, bank-银行卡';
 
 -- 4. 城市代码映射表
 CREATE TABLE IF NOT EXISTS city_codes (
@@ -74,7 +78,6 @@ CREATE TABLE IF NOT EXISTS city_codes (
     UNIQUE KEY unique_code (city_code)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
-<<<<<<< HEAD
 -- 5. 浏览历史表
 CREATE TABLE IF NOT EXISTS browse_history (
     id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -88,12 +91,6 @@ CREATE TABLE IF NOT EXISTS browse_history (
     INDEX idx_user (user_id),
     INDEX idx_browse_time (browse_time)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-=======
--- 在 orders 表添加更多payment相关字段
-ALTER TABLE orders
-ADD COLUMN payment_time DATETIME NULL COMMENT '支付时间',
-ADD COLUMN payment_method VARCHAR(20) NULL COMMENT '支付方式: wechat-微信, alipay-支付宝, bank-银行卡';
->>>>>>> e2e5fe7e3c55ad4a343bb087b5fb01aec3efdb20
 
 -- 6. 用户账户表
 CREATE TABLE IF NOT EXISTS user_accounts (
@@ -197,7 +194,6 @@ INSERT INTO orders (order_id, user_id, flight_id, seat_type, seat_number, status
 ('ORD00004', 1, 3, 2, '01A', '未支付', 35000.00, 0.00, '2025-11-27 09:00:00'),
 ('ORD20251202001', 123, 1, 0, '15A', '未支付', 1250.00, 0.00, NOW());
 
-<<<<<<< HEAD
 -- 5. 插入浏览历史数据
 INSERT INTO browse_history (user_id, flight_id, browse_time) VALUES
 (1, 1, '2025-12-01 08:00:00'),
@@ -225,32 +221,6 @@ INSERT INTO recharge_records (user_id, order_no, amount, status, recharge_time) 
 -- ============================================
 -- 创建视图（用于SystemController）
 -- ============================================
-=======
--- 浏览历史表
-CREATE TABLE IF NOT EXISTS browse_history (
-    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    flight_id INT NOT NULL,
-    flight_data JSON NULL,
-    browse_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (user_id) REFERENCES users(U_ID) ON DELETE CASCADE,
-    FOREIGN KEY (flight_id) REFERENCES flights(ID) ON DELETE CASCADE,
-    INDEX idx_user (user_id),
-    INDEX idx_browse_time (browse_time)
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- 插入新的测试数据，确保每个flight_id都能在flights表中找到
-INSERT INTO browse_history (user_id, flight_id, browse_time) VALUES
--- 用户1的浏览记录
-(1, 1, '2025-12-01 08:00:00'),  -- flight_id=1 对应 CA1001
-(1, 2, '2025-12-02 09:30:00'),  -- flight_id=2 对应 MU2567
-(1, 3, '2025-12-03 14:20:00'),  -- flight_id=3 对应 CZ3888
-(1, 4, '2025-12-04 16:45:00'),  -- flight_id=4 对应 CA1502
--- 用户2的浏览记录
-(2, 1, '2025-12-05 10:00:00'),
-(2, 4, '2025-12-05 11:30:00');
->>>>>>> e2e5fe7e3c55ad4a343bb087b5fb01aec3efdb20
 
 -- 订单统计视图
 CREATE OR REPLACE VIEW order_statistics AS
@@ -264,6 +234,24 @@ SELECT
     COUNT(DISTINCT o.user_id) as unique_users
 FROM orders o
 GROUP BY DATE(o.order_date);
+
+-- 航班上座率统计视图
+CREATE OR REPLACE VIEW flight_occupancy_stats AS
+SELECT
+    f.ID as flight_id,
+    f.flight_number,
+    f.origin,
+    f.destination,
+    f.departure_time,
+    (f.economy_seats + f.business_seats + f.first_class_seats) as total_seats,
+    COUNT(o.ID) as booked_seats,
+    ROUND(COUNT(o.ID) * 100.0 / (f.economy_seats + f.business_seats + f.first_class_seats), 2) as occupancy_rate,
+    SUM(CASE WHEN o.seat_type = 0 THEN 1 ELSE 0 END) as economy_booked,
+    SUM(CASE WHEN o.seat_type = 1 THEN 1 ELSE 0 END) as business_booked,
+    SUM(CASE WHEN o.seat_type = 2 THEN 1 ELSE 0 END) as first_class_booked
+FROM flights f
+LEFT JOIN orders o ON f.ID = o.flight_id AND o.status IN ('已支付', '已完成')
+GROUP BY f.ID, f.flight_number, f.origin, f.destination, f.departure_time;
 
 -- ============================================
 -- 实用工具查询
