@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
     P_ID VARCHAR(18) NULL,
     email VARCHAR(40) NULL,
     photo VARCHAR(100) NULL,
+    balance DECIMAL(10, 2) DEFAULT 0.00 COMMENT '用户余额',
     UNIQUE KEY unique_tele (telephone),
     UNIQUE KEY unique_pid (P_ID),
     UNIQUE KEY unique_username (username)
@@ -38,7 +39,7 @@ CREATE TABLE IF NOT EXISTS flights (
     UNIQUE KEY unique_flight_number (flight_number)
 );
 
--- 3. 订单表 - 完整修复版
+-- 3. 订单表
 CREATE TABLE IF NOT EXISTS orders (
     ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
     order_id VARCHAR(50) NULL COMMENT '前端订单号',
@@ -51,12 +52,6 @@ CREATE TABLE IF NOT EXISTS orders (
     total_amount DECIMAL(10, 2) DEFAULT 0.00,
     paid_amount DECIMAL(10, 2) DEFAULT 0.00,
     payment_method VARCHAR(20) NULL COMMENT 'balance-余额, wechat-微信, alipay-支付宝',
-    payment_time DATETIME NULL,
-    locked_at DATETIME NULL COMMENT '锁定时间（用于座位锁定）',
-    locked_by INT NULL COMMENT '锁定用户ID',
-    payment_id INT NULL COMMENT '关联的支付ID',
-    cancelled_at DATETIME NULL COMMENT '取消时间',
-
     FOREIGN KEY (user_id) REFERENCES users(U_ID) ON DELETE CASCADE,
     FOREIGN KEY (flight_id) REFERENCES flights(ID) ON DELETE CASCADE,
     UNIQUE KEY unique_order_id (order_id),
@@ -64,10 +59,6 @@ CREATE TABLE IF NOT EXISTS orders (
     INDEX idx_status (status),
     INDEX idx_user (user_id)
 );
--- 在 orders 表添加更多payment相关字段
-ALTER TABLE orders
-ADD COLUMN payment_time DATETIME NULL COMMENT '支付时间',
-ADD COLUMN payment_method VARCHAR(20) NULL COMMENT '支付方式: wechat-微信, alipay-支付宝, bank-银行卡';
 
 -- 4. 城市代码映射表
 CREATE TABLE IF NOT EXISTS city_codes (
@@ -76,46 +67,6 @@ CREATE TABLE IF NOT EXISTS city_codes (
     city_code VARCHAR(3) NOT NULL COMMENT 'IATA三字码',
     pinyin VARCHAR(50) NULL COMMENT '城市拼音，方便后续做模糊搜索',
     UNIQUE KEY unique_code (city_code)
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- 5. 浏览历史表
-CREATE TABLE IF NOT EXISTS browse_history (
-    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    flight_id INT NOT NULL,
-    flight_data JSON NULL,
-    browse_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-
-    FOREIGN KEY (user_id) REFERENCES users(U_ID) ON DELETE CASCADE,
-    FOREIGN KEY (flight_id) REFERENCES flights(ID) ON DELETE CASCADE,
-    INDEX idx_user (user_id),
-    INDEX idx_browse_time (browse_time)
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- 6. 用户账户表
-CREATE TABLE IF NOT EXISTS user_accounts (
-    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    balance DECIMAL(10, 2) DEFAULT 0.00 COMMENT '账户余额',
-    total_recharge DECIMAL(10, 2) DEFAULT 0.00 COMMENT '累计充值',
-    last_recharge_time DATETIME NULL COMMENT '最后充值时间',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(U_ID) ON DELETE CASCADE,
-    UNIQUE KEY unique_user_account (user_id)
-) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
--- 7. 充值记录表
-CREATE TABLE IF NOT EXISTS recharge_records (
-    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-    user_id INT NOT NULL,
-    order_no VARCHAR(50) NOT NULL COMMENT '充值订单号',
-    amount DECIMAL(10, 2) NOT NULL COMMENT '充值金额',
-    status VARCHAR(20) DEFAULT 'success' COMMENT '充值状态',
-    recharge_time DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(U_ID) ON DELETE CASCADE,
-    UNIQUE KEY unique_order_no (order_no),
-    INDEX idx_user_time (user_id, recharge_time)
 ) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- ============================================
@@ -191,32 +142,8 @@ INSERT INTO orders (order_id, user_id, flight_id, seat_type, seat_number, status
 ('ORD00001', 1, 1, 0, '12A', '已支付', 800.00, 800.00, '2025-11-26 10:00:00'),
 ('ORD00002', 2, 1, 0, '12B', '已支付', 800.00, 800.00, '2025-11-26 10:05:00'),
 ('ORD00003', 3, 2, 1, '01F', '已取消', 5000.00, 0.00, '2025-11-26 11:00:00'),
-('ORD00004', 1, 3, 2, '01A', '未支付', 35000.00, 0.00, '2025-11-27 09:00:00'),
-('ORD20251202001', 123, 1, 0, '15A', '未支付', 1250.00, 0.00, NOW());
+('ORD00004', 1, 3, 2, '01A', '未支付', 35000.00, 0.00, '2025-11-27 09:00:00');
 
--- 5. 插入浏览历史数据
-INSERT INTO browse_history (user_id, flight_id, browse_time) VALUES
-(1, 1, '2025-12-01 08:00:00'),
-(1, 2, '2025-12-02 09:30:00'),
-(1, 3, '2025-12-03 14:20:00'),
-(1, 4, '2025-12-04 16:45:00'),
-(2, 1, '2025-12-05 10:00:00'),
-(2, 4, '2025-12-05 11:30:00');
-
--- 6. 初始化用户账户
-INSERT IGNORE INTO user_accounts (user_id, balance, total_recharge) VALUES
-(1, 1000.00, 1000.00),
-(2, 800.00, 800.00),
-(3, 5000.00, 5000.00),
-(4, 10000.00, 10000.00),
-(123, 0.00, 0.00);
-
--- 7. 插入充值记录示例
-INSERT INTO recharge_records (user_id, order_no, amount, status, recharge_time) VALUES
-(1, 'RECH202512011230001', 1000.00, 'success', '2025-12-01 12:30:00'),
-(2, 'RECH202512011445002', 800.00, 'success', '2025-12-01 14:45:00'),
-(3, 'RECH202512021030003', 5000.00, 'success', '2025-12-02 10:30:00'),
-(4, 'RECH202512021530004', 10000.00, 'success', '2025-12-02 15:30:00');
 
 -- ============================================
 -- 创建视图（用于SystemController）
@@ -265,6 +192,3 @@ SELECT U_ID, username, telephone FROM users;
 
 SELECT '订单数据:' as info;
 SELECT ID, order_id, user_id, status, total_amount, paid_amount FROM orders;
-
-SELECT '用户账户:' as info;
-SELECT user_id, balance FROM user_accounts;

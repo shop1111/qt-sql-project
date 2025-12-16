@@ -158,17 +158,33 @@ QHttpServerResponse OrderController::handleCreateOrder(const QHttpServerRequest 
     QSqlQuery query(db);
 
     // 2. 获取航班的总座位配置 (用于生成虚拟座位表)
-    query.prepare("SELECT economy_seats, business_seats, first_class_seats FROM flights WHERE ID = ?");
+    query.prepare("SELECT economy_seats, business_seats, first_class_seats, "
+                  "economy_price, business_price, first_class_price " // <--- 新增查询价格
+                  "FROM flights WHERE ID = ?");
     query.addBindValue(flightId);
     if (!query.exec() || !query.next()) {
         db.rollback();
         QJsonObject err; err["status"] = "failed"; err["message"] = "航班不存在";
         return QHttpServerResponse(err, QHttpServerResponse::StatusCode::NotFound);
     }
+
+    // 获取座位数
     int ecoCount = query.value("economy_seats").toInt();
     int busCount = query.value("business_seats").toInt();
     int firCount = query.value("first_class_seats").toInt();
 
+    int ecoPrice = query.value("economy_price").toInt();
+    int busPrice = query.value("business_price").toInt();
+    int firPrice = query.value("first_class_price").toInt();
+
+    double orderAmount = 0.0;
+    if (seatType == 0) orderAmount = ecoPrice;
+    else if (seatType == 1) orderAmount = busPrice;
+    else if (seatType == 2) orderAmount = firPrice;
+    else {
+        // 防止非法 seatType
+        orderAmount = ecoPrice;
+    }
     // 3. 获取当前已占用的座位 (排除已取消的)
     // 使用 FOR UPDATE 锁住相关行，防止并发下同一座位被重复分配，事务锁
     QSqlQuery occupiedQuery(db);
@@ -201,12 +217,13 @@ QHttpServerResponse OrderController::handleCreateOrder(const QHttpServerRequest 
 
     // 5. 写入订单 (Status: 未支付)
     QSqlQuery insertQuery(db);
-    insertQuery.prepare("INSERT INTO orders (user_id, flight_id, seat_type, seat_number, status, order_date) "
-                        "VALUES (?, ?, ?, ?, '未支付', CURRENT_TIMESTAMP)");
+    insertQuery.prepare("INSERT INTO orders (user_id, flight_id, seat_type, seat_number, status, order_date, total_amount) "
+                        "VALUES (?, ?, ?, ?, '未支付', CURRENT_TIMESTAMP, ?)"); // <--- 增加了一个占位符
     insertQuery.addBindValue(userId);
     insertQuery.addBindValue(flightId);
     insertQuery.addBindValue(seatType);
-    insertQuery.addBindValue(assignedSeat); // 使用系统分配的座位
+    insertQuery.addBindValue(assignedSeat);
+    insertQuery.addBindValue(orderAmount); // <--- 绑定计算好的价格
 
     if (!insertQuery.exec()) {
         db.rollback();

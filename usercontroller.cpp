@@ -40,7 +40,6 @@ QHttpServerResponse UserController::handleGetUserInfo(const QHttpServerRequest &
         return QHttpServerResponse(QJsonObject{{"status", "failed"}, {"message", "缺少用户的ID"}},
                                    QHttpServerResponse::StatusCode::BadRequest);
     }
-    qInfo() << jsonObj["uid"].toString();
     int uid = jsonObj["uid"].toString().toInt();
 
     QSqlDatabase db = DatabaseManager::getConnection();
@@ -48,12 +47,12 @@ QHttpServerResponse UserController::handleGetUserInfo(const QHttpServerRequest &
         return QHttpServerResponse(QJsonObject{{"status", "failed"}, {"message", "数据库连接失败"}},
                                    QHttpServerResponse::StatusCode::InternalServerError);
     }
-
+    qInfo()<<"用户请求："<<uid;
     QSqlQuery query(db);
-    query.prepare("SELECT username, nickname, true_name, telephone, email, P_ID, photo FROM users WHERE U_ID = ?");
+    query.prepare("SELECT username, nickname, true_name, telephone, email, P_ID, photo, balance FROM users WHERE U_ID = ?");
     query.addBindValue(uid);
-    qInfo() << uid;
     if (query.exec() && query.next()) {
+        qInfo()<<"请求成功："<<uid;
         QJsonObject data;
         QString pId = query.value("P_ID").toString();
 
@@ -65,7 +64,7 @@ QHttpServerResponse UserController::handleGetUserInfo(const QHttpServerRequest &
         data["email"] = query.value("email").toString();       // 邮箱
         data["avatar"] = query.value("photo").toString();      // 头像
         data["id_card"] = pId; // 身份证号（虽然前端不一定直接展示，但可能需要）
-
+        data["balance"] = query.value("balance").toDouble();
         // 计算性别
         data["gender"] = getGenderFromIdCard(pId);
 
@@ -75,6 +74,7 @@ QHttpServerResponse UserController::handleGetUserInfo(const QHttpServerRequest &
 
         return QHttpServerResponse(response, QHttpServerResponse::StatusCode::Ok);
     } else {
+        qInfo()<<"请求失败："<<uid;
         return QHttpServerResponse(QJsonObject{{"status", "failed"}, {"message", "用户不存在"}},
                                    QHttpServerResponse::StatusCode::NotFound);
     }
