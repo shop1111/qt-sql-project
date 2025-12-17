@@ -39,6 +39,10 @@ CREATE TABLE IF NOT EXISTS flights (
     UNIQUE KEY unique_flight_number (flight_number)
 );
 
+ALTER TABLE flights DROP INDEX unique_flight_number;
+
+ALTER TABLE flights ADD UNIQUE KEY unique_schedule (flight_number, departure_time);
+
 -- 3. 订单表
 CREATE TABLE IF NOT EXISTS orders (
     ID INT NOT NULL AUTO_INCREMENT PRIMARY KEY,

@@ -6,9 +6,6 @@
 #include "logincontroller.h"
 #include "OrderController.h"
 #include"PaymentController.h"
-#include"SeatController.h"
-#include"SystemController.h"
-#include"BrowseHistoryController.h"
 #include "aicontroller.h"
 #include "usercontroller.h"
 int main(int argc, char *argv[])
@@ -46,17 +43,6 @@ int main(int argc, char *argv[])
     PaymentController *paymentCtrl = new PaymentController(&a);
     paymentCtrl->registerRoutes(&httpServer);
 
-    SeatController *seatCtrl = new SeatController(&a);
-    seatCtrl->registerRoutes(&httpServer);
-
-    // Register SystemController for system management routes
-    SystemController *systemCtrl = new SystemController(&a); // Instantiate SystemController
-    systemCtrl->registerRoutes(&httpServer); // Register its routes
-
-    // 注册 BrowseHistoryController
-    BrowseHistoryController *browseHistoryCtrl = new BrowseHistoryController(&a);
-    browseHistoryCtrl->registerRoutes(&httpServer);
-
     AIController *aiCtrl = new AIController(&a);
     aiCtrl->registerRoutes(&httpServer);
 
@@ -77,17 +63,7 @@ int main(int argc, char *argv[])
     qInfo() << "   已加载模块: AIController";
     qInfo() << "   已加载模块: UserController";
     qInfo() << "   已加载模块: PaymentController";
-    qInfo() << "   已加载模块: SeatController";
-    qInfo() << "   已加载模块: SystemController";
-    qInfo() << "   已加载模块: BrowseHistoryController";
     qInfo() << "==========================================";
-    // const QHostAddress &localhost = QHostAddress(QHostAddress::LocalHost);
-    // for (const QHostAddress &address : QNetworkInterface::allAddresses()) {
-    //     // 过滤掉 IPv6 和 本地回环地址(127.0.0.1)
-    //     if (address.protocol() == QAbstractSocket::IPv4Protocol && address != localhost) {
-    //         qDebug() << "我的局域网 IP 是:" << address.toString();
-    //     }
-    // }
 
     return a.exec();
 }
