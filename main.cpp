@@ -35,11 +35,9 @@ int main(int argc, char *argv[])
     LoginController *loginCtrl = new LoginController(&a);
     loginCtrl->registerRoutes(&httpServer);
 
-
     OrderController *orderCtrl = new OrderController(&a);
     orderCtrl->registerRoutes(&httpServer);
 
-    // 注册 PaymentController
     PaymentController *paymentCtrl = new PaymentController(&a);
     paymentCtrl->registerRoutes(&httpServer);
 
@@ -61,6 +59,7 @@ int main(int argc, char *argv[])
     qInfo() << "   已加载模块: FlightController";
     qInfo() << "   已加载模块: LoginController";
     qInfo() << "   已加载模块: AIController";
+    qInfo() << "   已加载模块: OrderController";
     qInfo() << "   已加载模块: UserController";
     qInfo() << "   已加载模块: PaymentController";
     qInfo() << "==========================================";

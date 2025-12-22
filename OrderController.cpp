@@ -117,10 +117,15 @@ void OrderController::registerRoutes(QHttpServer *server)
                       return handleGetOrders(req);
                   });
 
-    // 3. 退单
+    // 3. 删除单
     server->route("/api/delete_order", QHttpServerRequest::Method::Post,
                   [this](const QHttpServerRequest &req) {
                       return handleDeleteOrder(req);
+                  });
+
+    server->route("/api/refund_order", QHttpServerRequest::Method::Post,
+                  [this](const QHttpServerRequest &req) {
+                      return handleRefundOrder(req);
                   });
 }
 
@@ -293,7 +298,12 @@ QHttpServerResponse OrderController::handleGetOrders(const QHttpServerRequest &r
     while (query.next()) {
         QJsonObject item;
         item["order_id"] = query.value("order_id").toInt();
-        item["status"] = (query.value("status").toString())=="未支付"?0:1; // 返回 "未支付" 或 "已支付"
+        if(query.value("status").toString() == "未支付")
+            item["status"] = 0;
+        else if(query.value("status").toString()=="已支付")
+            item["status"] = 1;
+        else
+            item["status"] = 2;
         item["flight_number"] = query.value("flight_number").toString();
         item["airline"] = query.value("airline").toString();
         // 前端对应 dep_city, arr_city，这里后端字段名为 origin, destination
@@ -338,55 +348,8 @@ QHttpServerResponse OrderController::handleGetOrders(const QHttpServerRequest &r
     return QHttpServerResponse(resp, QHttpServerResponse::StatusCode::Ok);
 }
 
-// ----------------------------------------------------------------------------
-// 3. 取消订单
-// ----------------------------------------------------------------------------
-// QHttpServerResponse OrderController::handleCancelOrder(const QHttpServerRequest &request)
-// {
-    // QJsonDocument jsonDoc = QJsonDocument::fromJson(request.body());
-    // QJsonObject jsonObj = jsonDoc.object();
-
-    // if (!jsonObj.contains("order_id") || !jsonObj.contains("uid")) {
-    //     return QHttpServerResponse(QHttpServerResponse::StatusCode::BadRequest);
-    // }
-
-    // int orderId = jsonObj["order_id"].toInt();
-    // int userId = jsonObj["uid"].toInt();
-
-    // QSqlDatabase db = DatabaseManager::getConnection();
-    // if (!db.isOpen()){
-    //     return QHttpServerResponse(QHttpServerResponse::StatusCode::InternalServerError);
-    // }
-
-    // QSqlQuery query(db);
-
-    // // 只有非 '已取消' 和 非 '已完成' 的订单可以取消
-    // // (根据业务需求，'已支付' 也可以取消并触发退款逻辑，这里简化为只改状态)
-    // query.prepare("UPDATE orders SET status = '已取消' WHERE ID = ? AND user_id = ? AND status != '已取消' AND status != '已完成'");
-    // query.addBindValue(orderId);
-    // query.addBindValue(userId);
-
-    // if (!query.exec()) {
-    //     QJsonObject err; err["status"] = "failed"; err["message"] = "数据库错误";
-    //     return QHttpServerResponse(err, QHttpServerResponse::StatusCode::InternalServerError);
-    // }
-
-    // if (query.numRowsAffected() > 0) {
-    //     QJsonObject success; success["status"] = "success"; success["message"] = "订单已取消";
-    //     return QHttpServerResponse(success, QHttpServerResponse::StatusCode::Ok);
-    // } else {
-    //     QJsonObject fail; fail["status"] = "failed"; fail["message"] = "订单不存在或无法操作";
-    //     return QHttpServerResponse(fail, QHttpServerResponse::StatusCode::NotFound);
-    // }
-// }
 QHttpServerResponse OrderController::handleDeleteOrder(const QHttpServerRequest &request)
 {
-
-    // --- 🔍 调试代码开始 ---
-    QByteArray rawBody = request.body();
-    qInfo() << "🔍 前端发送的原始数据:" << rawBody;
-    // --- 🔍 调试代码结束 ---
-
     QJsonDocument jsonDoc = QJsonDocument::fromJson(request.body());
     QJsonObject jsonObj = jsonDoc.object();
 
@@ -397,7 +360,6 @@ QHttpServerResponse OrderController::handleDeleteOrder(const QHttpServerRequest 
         qInfo()<<"error1: "<<userId;
         return QHttpServerResponse(QHttpServerResponse::StatusCode::BadRequest);
     }
-
     // QString orderId = jsonObj["order_id"].toString();
     QString orderId = jsonObj["order_id"].toVariant().toString();
     QSqlDatabase db = DatabaseManager::getConnection();
@@ -434,4 +396,99 @@ QHttpServerResponse OrderController::handleDeleteOrder(const QHttpServerRequest 
         fail["message"] = "订单不存在或无权操作";
         return QHttpServerResponse(fail, QHttpServerResponse::StatusCode::NotFound);
     }
+}
+
+// 4. 订单退款 (事务处理：改状态 + 退余额)
+// 请求示例: { "user_id": 1, "order_id": 123 }
+// ----------------------------------------------------------------------------
+QHttpServerResponse OrderController::handleRefundOrder(const QHttpServerRequest &request)
+{
+    // 1. 解析请求参数
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(request.body());
+    QJsonObject jsonObj = jsonDoc.object();
+
+    if (!jsonObj.contains("user_id") || !jsonObj.contains("order_id")) {
+        QJsonObject err; err["status"] = "failed"; err["message"] = "参数缺失";
+        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::BadRequest);
+    }
+
+    int userId = jsonObj["user_id"].toInt();
+    int orderId = jsonObj["order_id"].toInt();
+
+    // 2. 连接数据库
+    QSqlDatabase db = DatabaseManager::getConnection();
+    if (!db.isOpen()) {
+        return QHttpServerResponse(QHttpServerResponse::StatusCode::InternalServerError);
+    }
+
+    // 3. 开启事务 (非常重要：涉及资金变动)
+    db.transaction();
+    QSqlQuery query(db);
+
+    // 4. 查询订单状态及支付金额 (使用 FOR UPDATE 锁行，防止并发重复退款)
+    query.prepare("SELECT status, paid_amount, user_id FROM orders WHERE ID = ? FOR UPDATE");
+    query.addBindValue(orderId);
+
+    if (!query.exec() || !query.next()) {
+        db.rollback();
+        QJsonObject err; err["status"] = "failed"; err["message"] = "订单不存在";
+        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::NotFound);
+    }
+
+    // 5. 校验逻辑
+    int dbUserId = query.value("user_id").toInt();
+    QString status = query.value("status").toString();
+    double paidAmount = query.value("paid_amount").toDouble();
+
+    // 校验归属权
+    if (dbUserId != userId) {
+        db.rollback();
+        return QHttpServerResponse(QHttpServerResponse::StatusCode::Forbidden);
+    }
+
+    // 校验状态 (只有“已支付”的订单才能退款)
+    if (status != "已支付") {
+        db.rollback();
+        QJsonObject err;
+        err["status"] = "failed";
+
+        if (status == "已退款") err["message"] = "该订单已退款，请勿重复操作";
+        else if (status == "未支付") err["message"] = "订单未支付，无法退款";
+        else err["message"] = "当前订单状态无法退款: " + status;
+
+        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::Conflict);
+    }
+
+    // 6. 执行退款操作
+
+    // A. 增加用户余额
+    QSqlQuery updateUser(db);
+    updateUser.prepare("UPDATE users SET balance = balance + ? WHERE U_ID = ?");
+    updateUser.addBindValue(paidAmount);
+    updateUser.addBindValue(userId);
+
+    if (!updateUser.exec()) {
+        db.rollback();
+        QJsonObject err; err["status"] = "failed"; err["message"] = "退款到余额失败";
+        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::InternalServerError);
+    }
+
+    // B. 更新订单状态为 "已退款"
+    QSqlQuery updateOrder(db);
+    updateOrder.prepare("UPDATE orders SET status = '已退款' WHERE ID = ?");
+    updateOrder.addBindValue(orderId);
+
+    if (!updateOrder.exec()) {
+        db.rollback();
+        QJsonObject err; err["status"] = "failed"; err["message"] = "更新订单状态失败";
+        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::InternalServerError);
+    }
+
+    // 7. 提交事务
+    db.commit();
+
+    QJsonObject success;
+    success["status"] = "success";
+    success["message"] = QString("退款成功，金额 %.2f 已退回账户余额").arg(paidAmount);
+    return QHttpServerResponse(success, QHttpServerResponse::StatusCode::Ok);
 }

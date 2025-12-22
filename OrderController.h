@@ -21,6 +21,8 @@ private:
 
     // 3. 退票/取消订单 (POST)
     QHttpServerResponse handleDeleteOrder(const QHttpServerRequest &request);
+
+    QHttpServerResponse handleRefundOrder(const QHttpServerRequest &request);
 };
 
 #endif // ORDERCONTROLLER_H
