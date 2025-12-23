@@ -47,12 +47,10 @@ QHttpServerResponse UserController::handleGetUserInfo(const QHttpServerRequest &
         return QHttpServerResponse(QJsonObject{{"status", "failed"}, {"message", "数据库连接失败"}},
                                    QHttpServerResponse::StatusCode::InternalServerError);
     }
-    qInfo()<<"用户请求："<<uid;
     QSqlQuery query(db);
     query.prepare("SELECT username, nickname, true_name, telephone, email, P_ID, photo, balance FROM users WHERE U_ID = ?");
     query.addBindValue(uid);
     if (query.exec() && query.next()) {
-        qInfo()<<"请求成功："<<uid;
         QJsonObject data;
         QString pId = query.value("P_ID").toString();
 

@@ -114,7 +114,7 @@ QHttpServerResponse AIController::handleAIChat(const QHttpServerRequest &request
     }
     // --- 分支 C：闲聊或其他 ---
     else {
-        QString systemPrompt = "你是一个风趣的航空旅行助手。简短热情地回复用户。如果用户提到旅行计划，可以主动问是否需要查票。";
+        QString systemPrompt = "你是一个风趣的航空旅行助手。简短热情地回复用户。如果用户提到旅行计划，可以主动问是否需要查票。可以尝试推荐一些热门的旅游景点。";
         aiReplyText = callLLMToChat(systemPrompt, userMessage, history);
     }
 

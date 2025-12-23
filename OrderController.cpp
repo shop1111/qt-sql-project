@@ -413,7 +413,7 @@ QHttpServerResponse OrderController::handleRefundOrder(const QHttpServerRequest 
     }
 
     int userId = jsonObj["user_id"].toInt();
-    int orderId = jsonObj["order_id"].toInt();
+    int orderId = jsonObj["order_id"].toString().toInt();
 
     // 2. 连接数据库
     QSqlDatabase db = DatabaseManager::getConnection();
@@ -432,6 +432,7 @@ QHttpServerResponse OrderController::handleRefundOrder(const QHttpServerRequest 
     if (!query.exec() || !query.next()) {
         db.rollback();
         QJsonObject err; err["status"] = "failed"; err["message"] = "订单不存在";
+        qInfo()<<"找不到订单号："<<orderId;
         return QHttpServerResponse(err, QHttpServerResponse::StatusCode::NotFound);
     }
 
