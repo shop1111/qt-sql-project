@@ -31,6 +31,12 @@ void FlightController::registerRoutes(QHttpServer *server)
                   [this](const QHttpServerRequest &req) {
                       return handleUpdateFlight(req);
                   });
+
+    // [新增] 管理员删除航班
+    server->route("/api/admin/delete_flight", QHttpServerRequest::Method::Post,
+                  [this](const QHttpServerRequest &req) {
+                      return handleDeleteFlight(req);
+                  });
 }
 
 QString FlightController::getCityNameByCode(const QString &code)
@@ -341,5 +347,51 @@ QHttpServerResponse FlightController::handleUpdateFlight(const QHttpServerReques
     } else {
         qWarning() << "SQL Error:" << query.lastError().text();
         return QHttpServerResponse(QHttpServerResponse::StatusCode::InternalServerError);
+    }
+}
+
+QHttpServerResponse FlightController::handleDeleteFlight(const QHttpServerRequest &request)
+{
+    QJsonDocument jsonDoc = QJsonDocument::fromJson(request.body());
+    QJsonObject jsonObj = jsonDoc.object();
+
+    QSqlDatabase db = DatabaseManager::getConnection();
+    if (!db.isOpen()) {
+        return QHttpServerResponse(QHttpServerResponse::StatusCode::InternalServerError);
+    }
+
+    QSqlQuery query(db);
+
+    if (jsonObj.contains("flight_id")) {
+        query.prepare("DELETE FROM flights WHERE ID = ?");
+        query.addBindValue(jsonObj["flight_id"].toInt());
+    }else {
+        QJsonObject err;
+        err["status"] = "failed";
+        err["message"] = "参数缺失: 需要 flight_id 或 flight_number";
+        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::BadRequest);
+    }
+
+    // 3. 执行删除
+    if (!query.exec()) {
+        qWarning() << "Delete Flight Error:" << query.lastError().text();
+        QJsonObject err;
+        err["status"] = "failed";
+        // 提示：如果 flight_system.sql 里没有设置 ON DELETE CASCADE，这里可能会因为有订单关联而报错
+        err["message"] = "删除失败: " + query.lastError().text();
+        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::InternalServerError);
+    }
+
+    // 4. 检查是否有数据被删除
+    if (query.numRowsAffected() > 0) {
+        QJsonObject success;
+        success["status"] = "success";
+        success["message"] = "航班已删除";
+        return QHttpServerResponse(success, QHttpServerResponse::StatusCode::Ok);
+    } else {
+        QJsonObject fail;
+        fail["status"] = "failed";
+        fail["message"] = "未找到该航班，删除失败";
+        return QHttpServerResponse(fail, QHttpServerResponse::StatusCode::NotFound);
     }
 }

@@ -20,6 +20,7 @@ private:
     // [新增] 管理员：修改航班
     QHttpServerResponse handleUpdateFlight(const QHttpServerRequest &request);
 
+    QHttpServerResponse handleDeleteFlight(const QHttpServerRequest &request);
     // 辅助函数 (代码转中文名)
     QString getCityNameByCode(const QString &code);
 };
