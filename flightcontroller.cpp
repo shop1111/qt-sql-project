@@ -174,7 +174,7 @@ QHttpServerResponse FlightController::handleAddFlight(const QHttpServerRequest &
     QJsonObject jsonObj = jsonDoc.object();
 
     // 1. 简单校验必填字段
-    if (!jsonObj.contains("flight_number") || !jsonObj.contains("date") || !jsonObj.contains("origin")) {
+    if (!jsonObj.contains("flight_number")|| !jsonObj.contains("origin")) {
         QJsonObject err; err["status"] = "failed"; err["message"] = "参数缺失";
         return QHttpServerResponse(err, QHttpServerResponse::StatusCode::BadRequest);
     }
@@ -263,33 +263,33 @@ QHttpServerResponse FlightController::handleUpdateFlight(const QHttpServerReques
     QJsonObject jsonObj = jsonDoc.object();
 
     if (!jsonObj.contains("flight_id")) {
-        QJsonObject err; err["status"] = "failed"; err["message"] = "必须指定 flight_id";
-        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::BadRequest);
+        return QHttpServerResponse(QHttpServerResponse::StatusCode::BadRequest);
     }
 
     int flightId = jsonObj["flight_id"].toInt();
     QSqlDatabase db = DatabaseManager::getConnection();
-    if (!db.isOpen()) return QHttpServerResponse(QHttpServerResponse::StatusCode::InternalServerError);
 
-    // 动态构建 UPDATE 语句，只更新前端传过来的字段
-    // 这种写法比较灵活，前端只传需要修改的字段即可
     QStringList setClauses;
     QVariantList boundValues;
 
-    if (jsonObj.contains("flight_number")) {
-        setClauses << "flight_number = ?";
-        boundValues << jsonObj["flight_number"].toString();
+    // ----------------------------------------------------------------
+    // 1. 自动合并时间 (前端分拆 -> 数据库合并)
+    // ----------------------------------------------------------------
+    // 只要前端传了，就直接覆盖更新
+    if (jsonObj.contains("departure_date") && jsonObj.contains("departure_time")) {
+        QString fullTime = jsonObj["departure_date"].toString() + " " + jsonObj["departure_time"].toString() + ":00";
+        setClauses << "departure_time = ?";
+        boundValues << fullTime;
     }
-    if (jsonObj.contains("airline")) {
-        setClauses << "airline = ?";
-        boundValues << jsonObj["airline"].toString();
-    }
-    if (jsonObj.contains("aircraft_model")) {
-        setClauses << "aircraft_model = ?";
-        boundValues << jsonObj["aircraft_model"].toString();
+    if (jsonObj.contains("landing_date") && jsonObj.contains("landing_time")) {
+        QString fullTime = jsonObj["landing_date"].toString() + " " + jsonObj["landing_time"].toString() + ":00";
+        setClauses << "landing_time = ?";
+        boundValues << fullTime;
     }
 
-    // 2. 城市 (注意：使用 getCityNameByCode 进行转义，防止存入三字码)
+    // ----------------------------------------------------------------
+    // 2. 城市转义 (前端代码 -> 数据库中文)
+    // ----------------------------------------------------------------
     if (jsonObj.contains("origin")) {
         setClauses << "origin = ?";
         boundValues << getCityNameByCode(jsonObj["origin"].toString());
@@ -299,69 +299,47 @@ QHttpServerResponse FlightController::handleUpdateFlight(const QHttpServerReques
         boundValues << getCityNameByCode(jsonObj["destination"].toString());
     }
 
-    // 3. 时间 (假设前端传过来的是标准格式字符串 "yyyy-MM-dd HH:mm:ss")
-    if (jsonObj.contains("departure_time")) {
-        setClauses << "departure_time = ?";
-        boundValues << jsonObj["departure_time"].toString();
-    }
-    if (jsonObj.contains("landing_time")) {
-        setClauses << "landing_time = ?";
-        boundValues << jsonObj["landing_time"].toString();
+    // ----------------------------------------------------------------
+    // 3. 其他所有字段 (直接按值更新)
+    // ----------------------------------------------------------------
+    // 既然前端是全量打包，这里的循环会把所有字段都加进 SQL
+    QMap<QString, QString> fieldMap;
+    fieldMap.insert("flight_number", "flight_number");
+    fieldMap.insert("airline", "airline");
+    fieldMap.insert("aircraft_model", "aircraft_model");
+    fieldMap.insert("economy_seats", "economy_seats");
+    fieldMap.insert("economy_price", "economy_price");
+    fieldMap.insert("business_seats", "business_seats");
+    fieldMap.insert("business_price", "business_price");
+    fieldMap.insert("first_class_seats", "first_class_seats");
+    fieldMap.insert("first_class_price", "first_class_price");
+
+    QMapIterator<QString, QString> i(fieldMap);
+    while (i.hasNext()) {
+        i.next();
+        if (jsonObj.contains(i.key())) {
+            setClauses << QString("%1 = ?").arg(i.value());
+            boundValues << jsonObj[i.key()].toVariant();
+        }
     }
 
-    // 4. 经济舱配置
-    if (jsonObj.contains("economy_seats")) {
-        setClauses << "economy_seats = ?";
-        boundValues << jsonObj["economy_seats"].toInt();
-    }
-    if (jsonObj.contains("economy_price")) {
-        setClauses << "economy_price = ?";
-        boundValues << jsonObj["economy_price"].toInt();
-    }
-
-    // 5. 商务舱配置
-    if (jsonObj.contains("business_seats")) {
-        setClauses << "business_seats = ?";
-        boundValues << jsonObj["business_seats"].toInt();
-    }
-    if (jsonObj.contains("business_price")) {
-        setClauses << "business_price = ?";
-        boundValues << jsonObj["business_price"].toInt();
-    }
-
-    // 6. 头等舱配置
-    if (jsonObj.contains("first_class_seats")) {
-        setClauses << "first_class_seats = ?";
-        boundValues << jsonObj["first_class_seats"].toInt();
-    }
-    if (jsonObj.contains("first_class_price")) {
-        setClauses << "first_class_price = ?";
-        boundValues << jsonObj["first_class_price"].toInt();
-    }
-
-    // 如果没有要修改的字段
-    if (setClauses.isEmpty()) {
-        QJsonObject resp; resp["status"] = "success"; resp["message"] = "无数据变更";
-        return QHttpServerResponse(resp, QHttpServerResponse::StatusCode::Ok);
-    }
+    // ----------------------------------------------------------------
+    // 4. 执行全量 UPDATE
+    // ----------------------------------------------------------------
+    if (setClauses.isEmpty()) return QHttpServerResponse(QHttpServerResponse::StatusCode::Ok);
 
     QString sql = "UPDATE flights SET " + setClauses.join(", ") + " WHERE ID = ?";
-    boundValues << flightId; // 最后一个绑定的是 ID
+    boundValues << flightId;
 
     QSqlQuery query(db);
     query.prepare(sql);
-    for (const QVariant &val : boundValues) {
-        query.addBindValue(val);
-    }
+    for (const QVariant &val : boundValues) query.addBindValue(val);
 
-    if (!query.exec()) {
-        qWarning() << "Update Flight Error:" << query.lastError().text();
-        QJsonObject err; err["status"] = "failed"; err["message"] = "更新失败";
-        return QHttpServerResponse(err, QHttpServerResponse::StatusCode::InternalServerError);
+    if (query.exec()) {
+        QJsonObject success; success["status"] = "success"; success["message"] = "更新成功";
+        return QHttpServerResponse(success, QHttpServerResponse::StatusCode::Ok);
+    } else {
+        qWarning() << "SQL Error:" << query.lastError().text();
+        return QHttpServerResponse(QHttpServerResponse::StatusCode::InternalServerError);
     }
-
-    QJsonObject success;
-    success["status"] = "success";
-    success["message"] = "航班信息已更新";
-    return QHttpServerResponse(success, QHttpServerResponse::StatusCode::Ok);
 }
