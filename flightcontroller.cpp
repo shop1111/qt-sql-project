@@ -15,7 +15,6 @@ FlightController::FlightController(QObject *parent) : BaseController(parent)
 // 核心：注册路由
 void FlightController::registerRoutes(QHttpServer *server)
 {
-    // POST /api/flights -> 创建航班
     server->route("/api/search_flights", QHttpServerRequest::Method::Post,
                   [this](const QHttpServerRequest &req) {
                       return handleSearchFlights(req);
@@ -122,26 +121,29 @@ QHttpServerResponse FlightController::handleSearchFlights(const QHttpServerReque
         flight["departure_time"] = depTime.toString("HH:mm");
         flight["landing_time"] = arrTime.toString("HH:mm");
 
-        // --- 价格逻辑 ---
-        // 根据前端选的舱位返回对应价格
-        int price = 0;
-        int seats = 0;
-
+        // // --- 价格逻辑 ---
+        // // 根据前端选的舱位返回对应价格
+        // int price = 0;
+        // int seats = 0;
         // 简单判断字符串包含关系，兼容 "公务/头等舱" 写法
-        if (seatClass.contains("经济")) {
-            price = query.value("economy_price").toInt();
-            seats = query.value("economy_seats").toInt();
-        } else if (seatClass.contains("公务") || seatClass.contains("商务")) {
-            price = query.value("business_price").toInt();
-            seats = query.value("business_seats").toInt();
-        } else {
-            // 默认或者头等舱
-            price = query.value("first_class_price").toInt();
-            seats = query.value("first_class_seats").toInt();
-        }
+        // if (seatClass.contains("经济")) {
+        //     price = query.value("economy_price").toInt();
+        //     seats = query.value("economy_seats").toInt();
+        // } else if (seatClass.contains("公务") || seatClass.contains("商务")) {
+        //     price = query.value("business_price").toInt();
+        //     seats = query.value("business_seats").toInt();
+        // } else {
+        //     // 默认或者头等舱
+        //     price = query.value("first_class_price").toInt();
+        //     seats = query.value("first_class_seats").toInt();
+        // }
 
-        flight["price"] = price;
-        flight["seats_left"] = seats; // 可以在前端显示余票
+        flight["economy_price"] = query.value("economy_price").toInt();
+        flight["economy_seats"] = query.value("economy_seats").toInt();
+        flight["business_price"] = query.value("business_price").toInt();
+        flight["business_seats"] = query.value("business_seats").toInt();
+        flight["first_class_price"] = query.value("first_class_price").toInt();
+        flight["first_class_seats"] = query.value("first_class_seats").toInt();
 
         flightList.append(flight);
     }
@@ -238,12 +240,14 @@ QHttpServerResponse FlightController::handleAddFlight(const QHttpServerRequest &
     if (!query.exec()) {
         qWarning() << "Add Flight Error:" << query.lastError().text();
         QJsonObject err; err["status"] = "failed"; err["message"] = "添加航班失败: " + query.lastError().text();
+        qInfo()<<"err: 添加航班失败";
         return QHttpServerResponse(err, QHttpServerResponse::StatusCode::InternalServerError);
     }
 
     QJsonObject success;
     success["status"] = "success";
     success["message"] = "航班添加成功";
+    qInfo()<<"航班添加成功";
     success["flight_id"] = query.lastInsertId().toInt();
     return QHttpServerResponse(success, QHttpServerResponse::StatusCode::Ok);
 }
